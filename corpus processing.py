@@ -123,3 +123,29 @@ if __name__ == "__main__":
     topics_coherences = lda_model.top_topics(bow_corpus, topn=20)
     avg_coherence_score = np.mean([item[1] for item in topics_coherences])
     print('Avg. Coherence Score:', avg_coherence_score)
+
+    topics_with_wts = [item[0] for item in topics_coherences]
+    print('LDA Topics with Weights')
+    print("="*50)
+    for idx, topic in enumerate(topics_with_wts):
+        print('Topic #'+str(idx+1)+":")
+        print([(term, round(wt,3)) for wt, term in topic])
+        print()
+
+    print("LDA Topics without Weights")
+    print('='*50)
+    for idx, topic in enumerate(topics_with_wts):
+        print("Topic #"+str(idx+1)+":")
+        print([term for wt, term in topic])
+        print()
+
+    cv_coherence_model_lda = gensim.models.CoherenceModel(model=lda_model, corpus=bow_corpus, texts=norm_corpus_bigrams, dictionary=dictionary, coherence='c_v')
+
+    avg_coherence_cv = cv_coherence_model_lda.get_coherence()
+    umass_coherence_model_lda = gensim.models.CoherenceModel(model=lda_model, corpus=bow_corpus, texts=norm_corpus_bigrams, dictionary=dictionary, coherence='u_mass')
+    avg_coherence_umass = umass_coherence_model_lda.get_coherence()
+
+    perplexity = lda_model.log_perplexity(bow_corpus)
+    print('Avg. Coherence Score (Cv):', avg_coherence_cv)
+    print('Avg. Coherence Score (Umass):', avg_coherence_umass)
+    print('Model Preplexity:', perplexity)
