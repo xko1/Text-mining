@@ -22,6 +22,8 @@ if __name__ == "__main__":
     print("norm", norm)
     x = preprocesing.tf_idf_v(a, rm_stop_words=True)
 
+    preprocesing.BOW(a, 10)
+
     print(type(norm))
     print("matice tf-idf")
     y = preprocesing.tf_idf_v(a)[0]
