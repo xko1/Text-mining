@@ -3,10 +3,14 @@ import os
 import gensim
 import nltk
 import numpy as np
+import numpy as np
 import pandas as pd
 
 
 def normalize_corpus(papers):
+    stop_words = nltk.corpus.stopwords.words('english')
+    wtk = nltk.tokenize.RegexpTokenizer(r'\w+')
+    wnl = nltk.stem.wordnet.WordNetLemmatizer()
     norm_papers = []
     for paper in papers:
         paper = paper.lower()
@@ -19,26 +23,25 @@ def normalize_corpus(papers):
             norm_papers.append(paper_tokens)
     return norm_papers
 
-if __name__ == "__main__":
+def read_papers(data_path):
 
-    DATA_PATH = 'nipstxt/'
-    print(os.listdir(DATA_PATH))
+    print(os.listdir(data_path))
 
     folders = ["nips{0:02}".format(i) for i in range(0, 13)]
     papers = []
     for folder in folders:
-        file_names = os.listdir(DATA_PATH + folder)
+        file_names = os.listdir(data_path + folder)
         for file_name in file_names:
-            with open(DATA_PATH + folder + '/' + file_name, encoding='utf-8', errors='ignore', mode='+r')as f:
+            with open(data_path + folder + '/' + file_name, encoding='utf-8', errors='ignore', mode='+r') as f:
                 data = f.read()
             papers.append(data)
     print(len(papers))
+    return papers
 
-    # print((papers[0][:10000]))
 
-    stop_words = nltk.corpus.stopwords.words('english')
-    wtk = nltk.tokenize.RegexpTokenizer(r'\w+')
-    wnl = nltk.stem.wordnet.WordNetLemmatizer()
+if __name__ == "__main__":
+
+    papers = read_papers('nipstxt/')
 
     norm_papers = normalize_corpus(papers)
     print(len(norm_papers))
