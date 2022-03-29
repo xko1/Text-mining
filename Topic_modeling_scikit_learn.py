@@ -9,6 +9,10 @@ import nltk
 import numpy as np
 import numpy as np
 import pandas as pd
+import pyLDAvis.sklearn
+import dill
+import warnings
+
 
 
 cv = CountVectorizer(min_df=20, max_df=0.6, ngram_range=(1, 2), token_pattern=None, tokenizer=lambda doc: doc, preprocessor=lambda doc: doc)
@@ -70,7 +74,7 @@ for document_number in document_numbers:
 print('='*100)
 print('='*46 + 'LDA' + '='*51)
 
-lda_model = LatentDirichletAllocation(n_components=TOTAL_TOPICS, max_iter=500, max_doc_update_iter=50, learning_method='online', batch_size=1740, learning_offset=50., random_state=42)
+lda_model = LatentDirichletAllocation(n_components=TOTAL_TOPICS, max_iter=500, max_doc_update_iter=50, learning_method='online', batch_size=1740, learning_offset=50., random_state=42, n_jobs=4)
 document_topics = lda_model.fit_transform(cv_features)
 
 topic_terms = lda_model.components_
@@ -80,3 +84,16 @@ topics = [','.join(topic) for topic in topic_keyterms]
 pd.set_option('display.max_colwidth', -1)
 topics_df = pd.DataFrame(topics, columns=['Terms per Topic'], index=['Topic'+str(t) for t in range(1, TOTAL_TOPICS+1)])
 display(topics_df)
+
+dt_df = pd.DataFrame(document_topics, columns=['T'+str(i) for i in range(1, TOTAL_TOPICS+1)])
+pd.options.display.float_format = '{:,.5f}'.format
+pd.set_option('display.max_colwidth', 200)
+
+max_contrib_topics = dt_df.max(axis=0)
+dominant_topics = max_contrib_topics.index
+contrib_perc = max_contrib_topics.values
+document_numbers = [dt_df[dt_df[t] == max_contrib_topics.loc[t]].index[0] for t in dominant_topics]
+documents = [papers[i] for i in document_numbers]
+results_df = pd.DataFrame({'Dominant Topic': dominant_topics, 'Contribution %': contrib_perc, 'Paper Num': document_numbers, 'Topic': topics_df['Terms per Topic'], 'Paper Name': documents})
+display(results_df)
+

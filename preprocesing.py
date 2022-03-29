@@ -18,7 +18,7 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
-from IPython.display import display
+
 from gensim.models import word2vec
 from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 from sklearn.decomposition import LatentDirichletAllocation
