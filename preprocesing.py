@@ -3,7 +3,6 @@ import docx
 import nltk
 from pprint import pprint
 import matplotlib.pyplot as plt
-import numpy
 import numpy as np
 import contractions
 from contractions import contractions_dict
@@ -18,7 +17,7 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
-
+from IPython.display import display
 from gensim.models import word2vec
 from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 from sklearn.decomposition import LatentDirichletAllocation
@@ -258,8 +257,9 @@ def tf_idf_t(BOW_MATRIX, Count_Vectorizer):
     print(n[:10])
 
 
-def tf_idf_v(text, rm_stop_words=False):
-    text = sentence_tokenization(text)
+def tf_idf_v(text, rm_stop_words=False, not_tokenized=True):
+    if not_tokenized:
+        text = sentence_tokenization(text)
     if rm_stop_words:
         y = normalizace_textu(text)
         print(" ")
@@ -298,7 +298,7 @@ def tf_idf_cosine_similarity_two_doc(a, b):
     cosine_s_matrix = cosine_similarity(a1, b1)
     similarity = pd.DataFrame(cosine_s_matrix)
     display(similarity)
-    similarity.to_csv("SIMILARITY_MATRIX", index=False)
+    similarity.to_csv("SIMILARITY_MATRIX.csv", index=False)
     return cosine_s_matrix
 
 
@@ -306,7 +306,7 @@ def tf_idf_cosine_similarity_single_doc(a):
     cosine_s_matrix = cosine_similarity(a)
     similarity = pd.DataFrame(cosine_s_matrix)
     display(similarity)
-    similarity.to_csv("SIMILARITY_MATRIX", index=False)
+    similarity.to_csv("SIMILARITY_MATRIX.csv", index=False)
     return cosine_s_matrix
 # --------------------------------------------------Hierarchical Clustering---------------------------------------------
 
@@ -387,13 +387,13 @@ def lda_model(text):
 
 if __name__ == "__main__":
     a = 0
-    # x = read_docx('Sample_text_1.docx', paragraph=True)
+    x = read_docx('Sample_text_1.docx', paragraph=True)
     # y = read_docx('Sample text 2.docx', paragraph=True)
     # x = multiple_text('Sample_text_1.docx', 'Sample text 2.docx')
     # ("Enter how many most used words do you want to see.")
     # BOW_M, CV = BOW(x, int(input()))
     # # tf_idf_t(BOW_M,CV)
-    # a, DF1 = tf_idf_v(x)
+    c, a, DF1 = tf_idf_v(x)
     # DF1.to_csv("TFIDFV.csv", index=False)
     # b, DF2 = tf_idf_v(y)
     # DF2.to_csv("TFIDFV2.csv", index=False)
