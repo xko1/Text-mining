@@ -2,6 +2,7 @@ import pandas as pd
 
 import preprocesing
 import numpy as np
+
 from numpy import dot
 from numpy.linalg import norm
 #from keras.preprocessing import text, sequence
