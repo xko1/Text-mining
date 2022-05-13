@@ -9,6 +9,10 @@ import pandas as pd
 
 def normalize_corpus(papers):
     stop_words = nltk.corpus.stopwords.words('english')
+    stop_words.append("use")
+    expand_stopwords_list = ['mm', 'fig', "aa","ef","ciency", "ef ciency", "figure", "also", "ed"]
+    for i in expand_stopwords_list:
+        stop_words.append(i)
     wtk = nltk.tokenize.RegexpTokenizer(r'\w+')
     wnl = nltk.stem.wordnet.WordNetLemmatizer()
     norm_papers = []
@@ -27,14 +31,14 @@ def read_papers(data_path):
 
     print(os.listdir(data_path))
 
-    folders = ["nips{0:02}".format(i) for i in range(0, 13)]
+    folders = "text"
     papers = []
-    for folder in folders:
-        file_names = os.listdir(data_path + folder)
-        for file_name in file_names:
-            with open(data_path + folder + '/' + file_name, encoding='utf-8', errors='ignore', mode='+r') as f:
-                data = f.read()
-            papers.append(data)
+
+    file_names = os.listdir(data_path + folders)
+    for file_name in file_names:
+        with open(data_path + folders + '/' + file_name, encoding='utf-8', errors='ignore', mode='+r') as f:
+            data = f.read()
+        papers.append(data)
     print(len(papers))
     return papers
 
@@ -68,86 +72,4 @@ if __name__ == "__main__":
 
     # ----------------LSI------------------------------
 
-    TOTAL_TOPICS = 10
-    lsi_bow = gensim.models.LsiModel(bow_corpus, id2word=dictionary, num_topics=TOTAL_TOPICS, onepass=True, chunksize=1740, power_iters=1000)
-
-    for topic_id, topic in lsi_bow.print_topics(num_topics=10, num_words=20):
-        print("topic #" +str(topic_id+1)+":")
-        print(topic)
-        print()
-
-    for n in range(TOTAL_TOPICS):
-        print("topic #" +str(n+1)+":")
-        print("="*50)
-        d1 = []
-        d2 = []
-        for term, wt in lsi_bow.show_topic(n, topn=20):
-            if wt >= 0:
-                d1.append((term, round(wt, 3)))
-            else:
-                d2.append((term, round(wt, 3)))
-        print("Direction 1:", d1)
-        print('-'*50)
-        print("Direction 2:", d2)
-        print("-"*50)
-        print()
-
-    term_topic = lsi_bow.projection.u
-    singular_values = lsi_bow.projection.s
-    topic_document = (gensim.matutils.corpus2dense(lsi_bow[bow_corpus], len(singular_values)).T / singular_values).T
-    print(term_topic.shape, singular_values.shape, topic_document.shape)
-
-
-    document_topics = pd.DataFrame(np.round(topic_document.T, 3), columns=['T'+str(i) for i in range(1, TOTAL_TOPICS+1)])
-    document_topics.head(5)
-    # preprocesing.display(document_topics)
-
-    document_numbers = [13, 250, 500]
-    for documet_number in document_numbers:
-        top_topics = list(document_topics.columns[np.argsort(-np.absolute(document_topics.iloc[documet_number].values))[:3]])
-        print("Document #"+str(document_numbers)+':')
-        print("Dominant Topics (top 3): ", top_topics)
-        print("Paper Summary:")
-        print(papers[documet_number][:500])
-        print()
-
-    # print(papers[13])
-
-# -----------------------------------LDA-------------------------------------------
-
-    lda_model = gensim.models.LdaModel(corpus=bow_corpus, id2word=dictionary, chunksize=1740, alpha='auto', eta='auto', random_state=42,iterations=500, num_topics=TOTAL_TOPICS, passes=20, eval_every=None)
-
-    for topic_id, topic in lda_model.print_topics(num_topics=10, num_words=20):
-        print('Topic #'+str(topic_id+1)+':')
-        print(topic)
-        print()
-
-    topics_coherences = lda_model.top_topics(bow_corpus, topn=20)
-    avg_coherence_score = np.mean([item[1] for item in topics_coherences])
-    print('Avg. Coherence Score:', avg_coherence_score)
-
-    topics_with_wts = [item[0] for item in topics_coherences]
-    print('LDA Topics with Weights')
-    print("="*50)
-    for idx, topic in enumerate(topics_with_wts):
-        print('Topic #'+str(idx+1)+":")
-        print([(term, round(wt,3)) for wt, term in topic])
-        print()
-
-    print("LDA Topics without Weights")
-    print('='*50)
-    for idx, topic in enumerate(topics_with_wts):
-        print("Topic #"+str(idx+1)+":")
-        print([term for wt, term in topic])
-        print()
-
-    cv_coherence_model_lda = gensim.models.CoherenceModel(model=lda_model, corpus=bow_corpus, texts=norm_corpus_bigrams, dictionary=dictionary, coherence='c_v')
-
-    avg_coherence_cv = cv_coherence_model_lda.get_coherence()
-    umass_coherence_model_lda = gensim.models.CoherenceModel(model=lda_model, corpus=bow_corpus, texts=norm_corpus_bigrams, dictionary=dictionary, coherence='u_mass')
-    avg_coherence_umass = umass_coherence_model_lda.get_coherence()
-
-    perplexity = lda_model.log_perplexity(bow_corpus)
-    print('Avg. Coherence Score (Cv):', avg_coherence_cv)
-    print('Avg. Coherence Score (Umass):', avg_coherence_umass)
-    print('Model Preplexity:', perplexity)
+    TOTAL_TOPICS = 6

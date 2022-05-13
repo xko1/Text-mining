@@ -1,34 +1,33 @@
 import os
 import docx
 import nltk
-from pprint import pprint
+import PyPDF2
 import matplotlib.pyplot as plt
 import numpy as np
 import contractions
+import scipy.spatial.distance
 from contractions import contractions_dict
 import re
-from nltk.stem import LancasterStemmer
+
 import unicodedata
-from nltk.stem import WordNetLemmatizer
+
 import spacy
-from spacy.lang.en import English
+
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 from IPython.display import display
-from gensim.models import word2vec
+
 from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
 from sklearn.decomposition import LatentDirichletAllocation
-
 
 
 # open file docx
 def read_docx(text, paragraph=False):
     doc = docx.Document(text)
     text1 = ""
-
     if not paragraph:
         return doc.paragraphs
     else:
@@ -38,6 +37,29 @@ def read_docx(text, paragraph=False):
             text1 = text1 + " " + doc.paragraphs[i].text
         return text1
 
+def read_pdf(file):
+    # creating a pdf file object
+    pdfFileObj = open(file, 'rb')
+
+    # creating a pdf reader object
+    pdfReader = PyPDF2.PdfFileReader(pdfFileObj)
+
+    # printing number of pages in pdf file
+    print(pdfReader.numPages)
+
+    text = ""
+    for i in range(pdfReader.numPages):
+        # creating a page object
+
+        pageObj = pdfReader.getPage(i)
+        text = text + pageObj.extractText()
+
+    print(text)
+    # extracting text from page
+
+    # closing the pdf file object
+    pdfFileObj.close()
+    return text
 
 # word and sentence tokenization
 def tokenize_text(text):
@@ -48,7 +70,8 @@ def tokenize_text(text):
 
 # expands shortend word like I'll -> I will
 def expand_contractions(text, contraction_mapping=contractions_dict):
-    contraction_pattern = re.compile('({})'.format('|'.join(contraction_mapping.keys())), flags=re.IGNORECASE | re.DOTALL)
+    contraction_pattern = re.compile('({})'.format('|'.join(contraction_mapping.keys())),
+                                     flags=re.IGNORECASE | re.DOTALL)
 
     def expand_match(contraction):
         match = contraction.group(0)
@@ -99,7 +122,7 @@ def remove_special_char(text, remove_digits=False):
     if not remove_digits:
         pattern = r'[^a-zA-z0-9\s]'
     else:
-        pattern = r'[^a-zA-z\s]'
+        pattern = r'[^a-zA-z\s]+'
     text = re.sub(pattern, '', text)
     return text
 
@@ -107,6 +130,9 @@ def remove_special_char(text, remove_digits=False):
 def stopwords_remove(text, is_lowr_case=False):
     tokenizer = nltk.ToktokTokenizer()
     stopwords_list = nltk.corpus.stopwords.words('english')
+    expand_stopwords_list = ['mm', 'fig']
+    for i in expand_stopwords_list:
+        stopwords_list.append(i)
     tokens = tokenizer.tokenize(text)
     tokens = [token.strip() for token in tokens]
     if is_lowr_case:
@@ -121,7 +147,6 @@ def lemmatize(text):
     nlp = spacy.load("en_core_web_lg")
     # lemmatizer = nlp.get_pipe("lemmatizer")
     doc = nlp(text)
-
     # docs = list(nlp.pipe(text))
     x = [token.lemma_ for token in doc]
 
@@ -150,6 +175,7 @@ def normalizace_textu(text, contraction_expansion=True, accented_char_removal=Tr
         if remove_digits:
             doc = remove_special_char(doc, remove_digits=True)
         doc = re.sub(r'[\r|\n|\r\n]+', ' ', doc)
+        doc = re.sub(r'[[\w*\s*\-*]*]', ' ', doc)
         # if len(doc.split()) <= 1:
        # remove doc from text array
        # if text_lemmatization:
@@ -183,13 +209,14 @@ def BOW(text, number_of_most_used_words, if_print=True):
     y = lemmatize(" ".join(y))
     if if_print:
         print(len(y))
+        print('after lema', y)
     y = [string for string in y if string != ' ']
     if if_print:
         print(len(y))
         print(y)
 
-    cv = CountVectorizer(min_df=0.,max_df=1.)
-    cv_matrix =cv.fit_transform(y)
+    cv = CountVectorizer(min_df=0., max_df=1.)
+    cv_matrix = cv.fit_transform(y)
 
     m = np.sum(cv_matrix, axis=0)
     if if_print:
@@ -219,7 +246,70 @@ def BOW(text, number_of_most_used_words, if_print=True):
     n.sort(reverse=True)
     if if_print:
         print(n[:number_of_most_used_words])
-    return cv_matrix, cv
+    return cv_matrix, cv, n[:number_of_most_used_words]
+
+
+def bag_of_n_grams(text, number_of_most_used_words, min, max, if_print=True):
+
+    y = lemmatize(text)
+    print(len(y))
+    print("after lemma", y)
+    y = " ".join(y)
+    print(y)
+
+    text = sentence_tokenization(y)
+
+    for i in range(len(text)):
+        print(text[i])
+    print(type(text))
+
+    y = normalizace_textu(text)
+    print(" ")
+    print(type(y))
+    print("")
+    y = [string for string in y if string != '']
+
+    for j in range(len(y)):
+        if if_print:
+            print(y[j])
+
+    y = [string for string in y if string != ' ']
+    if if_print:
+        print(len(y))
+        print('this is y', y)
+
+    cv = CountVectorizer(ngram_range=(min, max))
+    cv_matrix = cv.fit_transform(y)
+
+    m = np.sum(cv_matrix, axis=0)
+    if if_print:
+        print(type(cv_matrix))
+    names = cv.get_feature_names_out()
+    display(pd.DataFrame(m, columns=names))
+
+    l = []
+    for i in range(0, m.size):
+        l.append(m[0, i])
+    if if_print:
+        print(l)
+
+    c = []
+    for i in range(0, m.size):
+        c.append(names[i])
+    if if_print:
+        print(c)
+
+    n = []
+    for j in range(0, m.size):
+        s = str(l[j]) + " " + str(c[j])
+        n.append(s.split())
+
+    for element in n:
+        element[0] = int(element[0])
+    n.sort(reverse=True)
+    if if_print:
+        print(n[:number_of_most_used_words])
+    return cv_matrix, cv, n[:number_of_most_used_words]
 
 
 def multiple_text(text1, text2):
@@ -240,7 +330,7 @@ def tf_idf_t(BOW_MATRIX, Count_Vectorizer):
     l = []
     for i in range(0, m.size):
         l.append(m[0, i])
-    print("this is l",l)
+    print("this is l", l)
 
     c = []
     for i in range(0, m.size):
@@ -258,32 +348,88 @@ def tf_idf_t(BOW_MATRIX, Count_Vectorizer):
     print(n[:10])
 
 
-def tf_idf_v(text, rm_stop_words=False, not_tokenized=True):
+def tf_idf_v(text, rm_stop_words=False, not_tokenized=True, no_one_word_sentences=True):
+    preprocessed_text = lemmatize(text)
+    print(len(preprocessed_text))
+    print("after lemma", preprocessed_text)
+    preprocessed_text = " ".join(preprocessed_text)
+    print(preprocessed_text)
+
     if not_tokenized:
-        text = sentence_tokenization(text)
+        text = sentence_tokenization(preprocessed_text)
     if rm_stop_words:
-        y = normalizace_textu(text)
+        preprocessed_text = normalizace_textu(text, )
         print(" ")
-        print(type(y))
+        print(type(preprocessed_text))
         print("")
-        y = [string for string in y if string != '']
+        preprocessed_text = [string for string in preprocessed_text if string != '']
+    if no_one_word_sentences:
+        preprocessed_text = [string for string in preprocessed_text if 1 != len(string.split())]
+        for j in preprocessed_text:
+            print(j)
 
-        for j in range(len(y)):
-            print(y[j])
+        # y = [string for string in y if string != ' ']
+    print(preprocessed_text)
+    print("length", len(preprocessed_text))
 
-        y = lemmatize(" ".join(y))
-        print(len(y))
-        print("after lemma",y)
-        #y = [string for string in y if string != ' ']
-        print(y)
-        return 0
-    else:
-        tfidf_vectorizer = TfidfVectorizer(min_df=0., max_df=1., norm="l2", use_idf=True, smooth_idf=True)
-        tfidf_vectorizer_matrix = tfidf_vectorizer.fit_transform(text).toarray()
-        vocab = tfidf_vectorizer.get_feature_names_out()
-        DF1 = pd.DataFrame(np.round(tfidf_vectorizer_matrix, 2), columns=vocab)
-        display(pd.DataFrame(np.round(tfidf_vectorizer_matrix, 2), columns=vocab))
-        DF1.to_csv("TFIDF.csv", index=False)
+    tfidf_vectorizer = TfidfVectorizer(min_df=0., max_df=1., norm="l2", use_idf=True, smooth_idf=True)
+    tfidf_vectorizer_matrix = tfidf_vectorizer.fit_transform(preprocessed_text).toarray()
+    vocab = tfidf_vectorizer.get_feature_names_out()
+    DF1 = pd.DataFrame(np.round(tfidf_vectorizer_matrix, 2), columns=vocab)
+    display(pd.DataFrame(np.round(tfidf_vectorizer_matrix, 2), columns=vocab))
+    DF1.to_csv("TFIDF.csv", index=False)
+    return tfidf_vectorizer_matrix, DF1, vocab, preprocessed_text
+
+
+def tf_idf_v_lsa(text, rm_stop_words=False, not_tokenized=True, no_one_word_sentences=True):
+    preprocessed_text = lemmatize(text)
+    print(len(preprocessed_text))
+    print("after lemma", preprocessed_text)
+    preprocessed_text = " ".join(preprocessed_text)
+    print(preprocessed_text)
+
+    if not_tokenized:
+        text = sentence_tokenization(preprocessed_text)
+    if rm_stop_words:
+        preprocessed_text = normalizace_textu(text, stopword_removal=False, remove_digits=True)
+        print(" ")
+        print(type(preprocessed_text))
+        print("")
+        preprocessed_text = [string for string in preprocessed_text if string != '']
+        preprocessed_text = [string for string in preprocessed_text if string != ' ']
+        preprocessed_text = [string for string in preprocessed_text if string != '  ']
+    if no_one_word_sentences:
+        preprocessed_text = [string for string in preprocessed_text if 1 != len(string.split())]
+        for j in preprocessed_text:
+            print(j)
+
+        # y = [string for string in y if string != ' ']
+    print(preprocessed_text)
+    print("length", len(preprocessed_text))
+
+    tfidf_vectorizer = TfidfVectorizer(min_df=0., max_df=1., norm="l2", use_idf=True, smooth_idf=True)
+    tfidf_vectorizer_matrix = tfidf_vectorizer.fit_transform(preprocessed_text).toarray()
+    vocab = tfidf_vectorizer.get_feature_names_out()
+    DF1 = pd.DataFrame(np.round(tfidf_vectorizer_matrix, 2), columns=vocab)
+    display(pd.DataFrame(np.round(tfidf_vectorizer_matrix, 2), columns=vocab))
+    DF1.to_csv("TFIDF.csv", index=False)
+    return tfidf_vectorizer_matrix, DF1, vocab, preprocessed_text
+
+
+def tf_idf_v_unpreprocesed(text):
+
+    text = sentence_tokenization(text)
+    for i in text:
+        print(i)
+    print("length", len(text))
+
+    tfidf_vectorizer = TfidfVectorizer(min_df=0., max_df=1., norm="l2", use_idf=True, smooth_idf=True)
+    tfidf_vectorizer_matrix = tfidf_vectorizer.fit_transform(text).toarray()
+    vocab = tfidf_vectorizer.get_feature_names_out()
+    print(vocab)
+    DF1 = pd.DataFrame(np.round(tfidf_vectorizer_matrix, 2), columns=vocab)
+    display(pd.DataFrame(np.round(tfidf_vectorizer_matrix, 2), columns=vocab))
+    DF1.to_csv("TFIDF1.csv", index=False)
 
     return tfidf_vectorizer_matrix, DF1, vocab
 
@@ -312,31 +458,49 @@ def tf_idf_cosine_similarity_single_doc(a):
 # --------------------------------------------------Hierarchical Clustering---------------------------------------------
 
 
+def euclidian_distance(matrix):
+    matrix = scipy.spatial.distance.pdist(matrix, metric='euclidean')
+    distance = pd.DataFrame(matrix)
+    display(distance)
+    distance.to_csv("DISTANCE_MATRIX.csv", index=False)
+    return matrix
+
+
 def ahc(similarity_matrix):
-    var = linkage(similarity_matrix, 'ward')
-    display(pd.DataFrame(var, columns=['Document\Cluster 1', 'Document\Cluster 2', 'Distance', 'Cluster Size'], dtype='object'))
+    var = linkage(similarity_matrix, method='ward')
+    display(pd.DataFrame(var, columns=['Document\Cluster 1', 'Document\Cluster 2', 'Distance', 'Cluster Size'],
+                         dtype='object'))
     return var
 
 
-def ahc_dendrogram(linkage_matrix):
+def cosine_distance(similarity_matrix):
+    distance = 1 - similarity_matrix
+    return distance
+
+
+def ahc_dendrogram(linkage_matrix, save_figure=True):
     plt.figure(figsize=(8, 3))
-    plt.title('test')
+    plt.title('Agglomerative hierarchical clustering ')
     plt.xlabel('data point')
     plt.ylabel('Distance')
     dendrogram(linkage_matrix)
     plt.axhline(y=1.0, c='k', ls='--', lw=0.5)
-    plt.savefig("dendogram.pdf")
+    if save_figure:
+        plt.savefig("dendogram.pdf")
+    else:
+        plt.show()
 
 
 def use_of_fcluster(linkage_matrix, initial_doc):
     print("f_cluster")
-    max_dist = 1.2
-    cluster_labels = fcluster(linkage_matrix, max_dist, criterion='distance')
-    cluster_labels = pd.DataFrame(cluster_labels, columns=['ClusterLabel'])
+    print("="*50)
+    cluster_labels = fcluster(linkage_matrix, 1.5, criterion='distance')
+    cluster_labels = pd.DataFrame(cluster_labels, columns=['Cluster number'])
     x = pd.concat([initial_doc, cluster_labels], axis=1)
     display(x)
 
 # ----------------------------------LDA TOPIC MODELING ALGORITHM--------------------------------------------------------
+
 
 def lda_model(text):
     text = sentence_tokenization(text)
@@ -364,7 +528,7 @@ def lda_model(text):
         topic = [(token, weight) for token, weight in zip(vocab_tf_idf, topic_weights)]
         topic = sorted(topic, key=lambda x: -x[1])
         topic = [item for item in topic if item[1] > 0.8]
-        print(topic)
+        print("those are the topics", topic)
         print()
 # ---------------------------------WORD2VEC-----------------------------------------------------------------------------
 
@@ -376,14 +540,11 @@ def lda_model(text):
 #     window_context = 30
 #     min_word_count = 1
 #     sample = 1e-3
-#
+
 #     w2v_model = word2vec.Word2Vec(tokens, vector_size=feature_size, window=window_context, min_count=min_word_count, sample=sample, epochs=50)
-#
+
 #     similar_words = {search_term: [item[0] for item in w2v_model.wv.most_similar([search_term], topn=5)] for search_term in ['structure']}
 #     print(similar_words)
-
-
-
 
 
 if __name__ == "__main__":
@@ -393,7 +554,7 @@ if __name__ == "__main__":
     # y = read_docx('Sample text 2.docx', paragraph=True)
     # x = multiple_text('Sample_text_1.docx', 'Sample text 2.docx')
     # print("Enter how many most used words do you want to see.")
-    BOW_M, CV = BOW(x, int(input()))
+    # BOW_M, CV = BOW(x, int(input()))
     # # tf_idf_t(BOW_M,CV)
     # c, a, DF1 = tf_idf_v(x)
     # DF1.to_csv("TFIDFV.csv", index=False)
@@ -403,4 +564,4 @@ if __name__ == "__main__":
     # print(len(a[1]))
     # print(len(b[1]))
     # tf_idf_cosine_similarity(a, b)
-
+    print(lemmatize("hello my name is Ondra and i am programing right now. This was caught live modeling"))

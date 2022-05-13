@@ -9,30 +9,22 @@ from IPython.display import display
 from scipy.sparse.linalg import svds
 import networkx
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
-stop_words = nltk.corpus.stopwords.words('english')
-
-def norm(doc):
-    doc = preprocesing.read_docx('sample_text_1.docx', paragraph=True)
-    stop_words = nltk.corpus.stopwords.words('english')
-    doc = re.sub(r'[^a-za-z\s]', '', doc, re.I | re.A)
-    doc = doc.lower()
-    doc = doc.strip()
-    tokens = nltk.word_tokenize(doc)
-    filtered_tokens = [token for token in tokens if token not in stop_words]
-    doc = ' '.join(filtered_tokens)
-    return doc
 
 
 def low_rank_svd(matrix, count):
-    u, s, vt = svds(matrix, count)
+    u, s, vt = svds(matrix, k=count)
     return u, s, vt
 
 
 def my_norm(doc):
     Norm = preprocesing.normalizace_textu(doc)
     return ' '.join(Norm)
+
+
+
 
 
 if __name__ == "__main__":
@@ -47,36 +39,47 @@ if __name__ == "__main__":
     # doc = ' '.join(filtered_tokens)
     # print(type(doc))
 
-    Text_for_preprocesing = preprocesing.read_docx('Sample_text_1.docx', paragraph=True)
-    Tokenized_text = preprocesing.sentence_tokenization(Text_for_preprocesing)
+    Text_for_preprocesing = preprocesing.read_docx('sample text 2.docx', paragraph=True)
+    tokenized_text = preprocesing.sentence_tokenization(Text_for_preprocesing)
 
-    Normalized_text = preprocesing.normalizace_textu(Tokenized_text, remove_digits=False)
-    # Normalized_text = ' '.join(Normalized_text)
-    print(Normalized_text)
-
-    dt_matrix = preprocesing.tf_idf_v(Normalized_text, not_tokenized=False)[0]
-    vocab = preprocesing.tf_idf_v(Normalized_text, not_tokenized=False)[2]
+    norm = preprocesing.normalizace_textu(tokenized_text, remove_digits=True, stopword_removal=False)
+    print('this is norm', norm)
+    # norm = [string for string in norm if len(string.split()) != 1]
+    # norm = [string for string in norm if string != '']
+    norm = [string for string in norm if string != ' ']
+    norm = [string for string in norm if string != '  ']
+    for i in norm:
+        print(i)
+    print(norm)
+    dt_matrix = preprocesing.tf_idf_v_lsa(Text_for_preprocesing, rm_stop_words=True, not_tokenized=True)[0]
+    vocab = preprocesing.tf_idf_v_lsa(Text_for_preprocesing, rm_stop_words=True, not_tokenized=True)[2]
+    preprocessed_text = preprocesing.tf_idf_v_lsa(Text_for_preprocesing, rm_stop_words=True, not_tokenized=True)[3]
     td_matrix = dt_matrix.T
     print(td_matrix.shape)
     display(pd.DataFrame(np.round(td_matrix, 2), index=vocab).head(10))
 
 # -------------------------------------------LSA----------------------------------------------------------
-    Number_of_sentences = 35
-    num_topics = 2
+    Number_of_sentences = 12
+    num_topics = 30
     u, s, vt = low_rank_svd(td_matrix, count=num_topics)
     print(u.shape, s.shape, vt.shape)
-    term_topic_mat, singular_values, topic_document_mat = u, s, vt
+    term_topic, singular_val, topic_document = u, s, vt
+    print("singular values", max(singular_val))
+    print("singular values", singular_val)
 
     sv_threshold = 0.5
-    min_sigma_value = max(singular_values) * sv_threshold
-    singular_values[singular_values < min_sigma_value] = 0
+    min_sigma_val = max(singular_val) * sv_threshold
+    singular_val[singular_val < min_sigma_val] = 0
 
-    salience_scores = np.sqrt(np.dot(np.square(singular_values), np.square(topic_document_mat)))
+    salience_scores = np.sqrt(np.dot(np.square(singular_val), np.square(topic_document)))
     print(salience_scores)
 
     top_sentences_indices = (-salience_scores).argsort()[:Number_of_sentences]
+    print('top sentences indices \n')
     top_sentences_indices.sort()
-    print('\n'.join(np.array(Tokenized_text)[top_sentences_indices]))
+    print(top_sentences_indices)
+
+    print('this is LSA', '\n'.join(np.array(preprocessed_text)[top_sentences_indices]))
 
 # --------------------------------------TEXT RANK--------------------------------------------------------------
 
@@ -85,15 +88,20 @@ if __name__ == "__main__":
     print(similarity_matrix.shape)
     print(similarity_matrix)
 
-    similarity_graph = networkx.from_numpy_array(similarity_matrix, create_using=nx.DiGraph)
+    similarity_graph = networkx.from_numpy_array(similarity_matrix, create_using=nx.Graph)
+    similarity_graph.remove_edges_from(nx.selfloop_edges(similarity_graph))
     plt.figure(figsize=(12, 6))
     networkx.draw_networkx(similarity_graph)
     print(type(similarity_graph))
     scores = networkx.pagerank(similarity_graph)
+    print(scores)
     ranked_sentences = sorted(((score, index) for index, score in scores.items()), reverse=True)
     print(ranked_sentences[:10])
-    plt.show()
 
     top_sentences_indices = [ranked_sentences[index][1] for index in range(Number_of_sentences)]
     top_sentences_indices.sort()
-    print('\n'.join(np.array(Tokenized_text)[top_sentences_indices]))
+    print(top_sentences_indices)
+
+    print('\n'.join(np.array(preprocessed_text)[top_sentences_indices]))
+    plt.show()
+

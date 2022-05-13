@@ -18,7 +18,6 @@ if __name__ == "__main__":
     print("")
     #y = [string for string in y if string != '']
 
-
     y = preprocesing.lemmatize(text)
     print(len(y))
     print("after lemma", y)
